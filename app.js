@@ -1,14 +1,14 @@
 // css 转义
-// http://tool.mkblog.cn/autoprefixer/ 
+// http://tool.mkblog.cn/autoprefixer/
 var app = new Vue({
   el: "#app",
   created: function () {
     let that = this;
-    const router = new VueRouter(function (params) {
+    const router = new VueRouter(function () {
       console.log("not found");
       that.switchRouter();
     });
-    router.route("/", function (params) {
+    router.route("/", function () {
       that._switchRouter("main");
       console.log("main");
     });
@@ -28,7 +28,7 @@ var app = new Vue({
       tx: false,
       name: false,
     },
-    message: "Hello Vue!",
+    message: "Hello shaokun",
   },
   methods: {
     _switchRouter: function (action) {
@@ -44,7 +44,7 @@ var app = new Vue({
     switchRouter: function (action = "main", params = "") {
       let url = !!action ? "#/" + action : "";
       if (params) url = url + "/" + params;
-      if (action === "main") url = "#";
+      if (action === "main") url = "#/";
       var a = document.createElement("a");
       a.setAttribute("href", url);
       a.setAttribute("target", "_self");

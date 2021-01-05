@@ -34,7 +34,8 @@
     <div id="app">
         <div v-if="router.main"
             class="animate__animated  animate__fadeIn main d-flex justify-content-center align-items-center">
-            <button @click="switchRouter('name')" type="button" class="btn btn-outline-primary"> go name  </button>
+            <p>{{message}}</p>
+            <button @click="switchRouter('name')" type="button" class="btn btn-outline-primary"> go name </button>
         </div>
         <div v-if="router.tx"
             class="animate__animated  animate__fadeIn tx d-flex justify-content-center align-items-center">
@@ -42,7 +43,7 @@
         </div>
         <div v-if="router.name"
             class="animate__animated  animate__fadeIn name d-flex justify-content-center align-items-center">
-            <button @click="switchRouter('tx',1)" type="button" class="btn btn-outline-primary"> go tx 1  </button>
+            <button @click="switchRouter('tx',1)" type="button" class="btn btn-outline-primary"> go tx 1 </button>
         </div>
     </div>
     <link rel="stylesheet" href="./main.css">
