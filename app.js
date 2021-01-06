@@ -7,7 +7,7 @@ var toastList = toastElList.map(function (toastEl) {
 var app = new Vue({
   el: "#app",
   created: function () {
-  
+    let ws  =new WebSocket("ws://127.0.0.1:30400")
     let that = this;
     const router = new VueRouter(function () {
       console.log("not found");
