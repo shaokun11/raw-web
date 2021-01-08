@@ -2,10 +2,6 @@
 // http://tool.mkblog.cn/autoprefixer/
 
 // svg 通过img引入并更改颜色 https://codepen.io/sosuke/pen/Pjoqqp
-var toastElList = [].slice.call(document.querySelectorAll(".toast"));
-var toastList = toastElList.map(function (toastEl) {
-  return new bootstrap.Toast(toastEl);
-});
 var app = new Vue({
   el: "#app",
   created: function () {
