@@ -41,11 +41,7 @@ var app = new Vue({
     },
     _switchPage: function (_page) {
       for (let page of Object.keys(this.pages)) {
-        if (page === _page) {
-          this.pages[page] = true;
-        } else {
-          this.pages[page] = false;
-        }
+        this.pages[page] = page === _page;
       }
     },
   },
