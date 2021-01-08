@@ -34,25 +34,19 @@
 <body>
 
     <div id="app">
-        <div v-if="router.main"
+        <div v-if="pages.main"
             class="animate__animated  animate__fadeIn main d-flex justify-content-center align-items-center flex-column">
             <div>
-                <svg style="width: 100px;
-                height: 100px;
-                fill: #f53d3d;" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
-                    class="bi bi-heart-fill" viewBox="0 0 16 16">
-                    <path fill-rule="evenodd"
-                        d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z" />
-                </svg>
+               <img src="./icons/heart-fill.svg" class="main-heart" >
             </div>
             <p>{{message}}</p>
             <button @click="switchRouter('name')" type="button" class="btn btn-outline-primary"> go name </button>
         </div>
-        <div v-if="router.tx"
+        <div v-if="pages.tx"
             class="animate__animated  animate__fadeIn tx d-flex justify-content-center align-items-center">
             <button @click="switchRouter()" type="button" class="btn btn-outline-primary"> go home </button>
         </div>
-        <div v-if="router.name"
+        <div v-if="pages.name"
             class="animate__animated  animate__fadeIn name d-flex justify-content-center align-items-center">
             <button @click="switchRouter('tx',1)" type="button" class="btn btn-outline-primary"> go tx 1 </button>
         </div>

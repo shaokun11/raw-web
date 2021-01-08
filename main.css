@@ -15,3 +15,9 @@
   background: rgb(197, 186, 123);
   height: 100%;
 }
+
+.main-heart {
+  height: 100px;
+  width: 100px;
+  filter: invert(24%) sepia(76%) saturate(7362%) hue-rotate(356deg) brightness(107%) contrast(121%)
+}
