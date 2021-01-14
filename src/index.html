@@ -13,11 +13,10 @@
     <!-- ws-->
     <script src="https://cdn.jsdelivr.net/npm/reconnecting-websocket@4.4.0/dist/reconnecting-websocket-iife.min.js"></script>
     <!-- bootstrap -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-giJF6kkoqNQ00vy+HMDP7azOuL0xtbfIcaT9wjKHr8RbDVddVHyTfAAsrekwKmP1" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-ygbV9kiqUc6oa4msXn9868pTtWMgiQaeYH7/t7LECLbyPA2x65Kgf80OJFdroafW"
-        crossorigin="anonymous"></script>
+    <!-- <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css" >
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js"></script> -->
+    <link rel="stylesheet" href="static/bootstrap.min.css">
+    <script src="static/bootstrap.bundle.min.js"></script>
     <!-- alert -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastr@2.1.4/build/toastr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/toastr@2.1.4/build/toastr.min.js"></script>
@@ -27,8 +26,8 @@
     <script src="https://cdn.jsdelivr.net/npm/fetch-detector@1.0.1/index.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fetch-ie8@1.5.0/fetch.min.js"></script>
     <!-- router -->
-    <script src="./VueRouter.js"></script>
-    <link rel="stylesheet" href="./format.css">
+    <script src="js/VueRouter.js"></script>
+    <link rel="stylesheet" href="css/format.css">
     <title>Document</title>
 </head>
 
@@ -38,10 +37,10 @@
         <div v-if="pages.main"
             class="animate__animated animate__fadeIn main d-flex justify-content-center align-items-center flex-column">
             <div>
-               <img src="./icons/heart-fill.svg" class="main-heart" >
+               <img src="../icons/heart-fill.svg" class="main-heart" >
             </div>
             <p>{{message}}</p>
-            <button @click="switchRouter('name')" type="button" class="btn btn-outline-primary"> go name </button>
+            <button @click="switchRouter('name')" type="button" class="btn btn-outline-primary "> go name </button>
         </div>
         <div v-if="pages.tx"
             class="animate__animated  animate__fadeIn tx d-flex justify-content-center align-items-center">
@@ -52,8 +51,8 @@
             <button @click="switchRouter('tx',1)" type="button" class="btn btn-outline-primary"> go tx 1 </button>
         </div>
     </div>
-    <link rel="stylesheet" href="./main.css">
-    <script src="./app.js"></script>
+    <link rel="stylesheet" href="css/main.css">
+    <script src="app.js"></script>
 </body>
 
 </html>
