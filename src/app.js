@@ -2,6 +2,8 @@
 // http://tool.mkblog.cn/autoprefixer/
 
 // svg 通过img引入并更改颜色 https://codepen.io/sosuke/pen/Pjoqqp
+
+// js 压缩  https://tool.lu/js/index.html
 var app = new Vue({
   el: "#app",
   created: function () {
@@ -36,8 +38,8 @@ var app = new Vue({
     routerCtrl: null,
   },
   methods: {
-    switchRouter: function (action, parmas) {
-      this.routerCtrl.switchRouter(action, parmas);
+    switchRouter: function (action, params) {
+      this.routerCtrl.switchRouter(action, params);
     },
     _switchPage: function (_page) {
       for (let page of Object.keys(this.pages)) {
