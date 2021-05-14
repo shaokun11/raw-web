@@ -35,7 +35,7 @@
          v-if="pages.main">
         <div><img class="main-heart" src="icons/heart-fill.svg"></div>
         <p>{{message}}</p>
-        <button @click="switchRouter('name')" class="btn btn-primary" type="button"> go name</button>
+        <button @click="switchRouter('name','?name=shaokun')" class="btn btn-primary" type="button"> go name</button>
     </div>
     <!--page tx-->
     <div class="animate__animated  animate__fadeIn tx d-flex justify-content-center align-items-center"
@@ -49,7 +49,7 @@
     </div>
 </div>
 <link href="css/main.css" rel="stylesheet">
-<script>$.getScript("app.js");</script>
+<script src="app.js"></script>
 <!-- ie fetch -->
 <script src="https://cdn.jsdelivr.net/npm/babel-polyfill@6.26.0/browser.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/es6-promise@4.2.8/dist/es6-promise.auto.min.js"></script>

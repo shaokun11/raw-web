@@ -1,290 +1,496 @@
-var $jscomp = $jscomp || {};
-$jscomp.scope = {};
-$jscomp.arrayIteratorImpl = function (q) {
-  var x = 0;
-  return function () {
-    return x < q.length ? {done: !1, value: q[x++]} : {done: !0};
-  };
-};
-$jscomp.arrayIterator = function (q) {
-  return {next: $jscomp.arrayIteratorImpl(q)};
-};
-$jscomp.makeIterator = function (q) {
-  var x = "undefined" != typeof Symbol && Symbol.iterator && q[Symbol.iterator];
-  return x ? x.call(q) : $jscomp.arrayIterator(q);
-};
-(function () {
-  function q(x, n, A) {
-    function m(r, y) {
-      if (!n[r]) {
-        if (!x[r]) {
-          var E = "function" == typeof require && require;
-          if (!y && E) return E(r, !0);
-          if (h) return h(r, !0);
-          y = Error("Cannot find module '" + r + "'");
-          throw y.code = "MODULE_NOT_FOUND", y;
+(function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.pathToRegexp = exports.tokensToRegexp = exports.regexpToFunction = exports.match = exports.tokensToFunction = exports.compile = exports.parse = void 0;
+/**
+ * Tokenize input string.
+ */
+function lexer(str) {
+    var tokens = [];
+    var i = 0;
+    while (i < str.length) {
+        var char = str[i];
+        if (char === "*" || char === "+" || char === "?") {
+            tokens.push({ type: "MODIFIER", index: i, value: str[i++] });
+            continue;
         }
-        y = n[r] = {exports: {}};
-        x[r][0].call(y.exports, function (C) {
-          return m(x[r][1][C] || C);
-        }, y, y.exports, q, x, n, A);
-      }
-      return n[r].exports;
+        if (char === "\\") {
+            tokens.push({ type: "ESCAPED_CHAR", index: i++, value: str[i++] });
+            continue;
+        }
+        if (char === "{") {
+            tokens.push({ type: "OPEN", index: i, value: str[i++] });
+            continue;
+        }
+        if (char === "}") {
+            tokens.push({ type: "CLOSE", index: i, value: str[i++] });
+            continue;
+        }
+        if (char === ":") {
+            var name = "";
+            var j = i + 1;
+            while (j < str.length) {
+                var code = str.charCodeAt(j);
+                if (
+                // `0-9`
+                (code >= 48 && code <= 57) ||
+                    // `A-Z`
+                    (code >= 65 && code <= 90) ||
+                    // `a-z`
+                    (code >= 97 && code <= 122) ||
+                    // `_`
+                    code === 95) {
+                    name += str[j++];
+                    continue;
+                }
+                break;
+            }
+            if (!name)
+                throw new TypeError("Missing parameter name at " + i);
+            tokens.push({ type: "NAME", index: i, value: name });
+            i = j;
+            continue;
+        }
+        if (char === "(") {
+            var count = 1;
+            var pattern = "";
+            var j = i + 1;
+            if (str[j] === "?") {
+                throw new TypeError("Pattern cannot start with \"?\" at " + j);
+            }
+            while (j < str.length) {
+                if (str[j] === "\\") {
+                    pattern += str[j++] + str[j++];
+                    continue;
+                }
+                if (str[j] === ")") {
+                    count--;
+                    if (count === 0) {
+                        j++;
+                        break;
+                    }
+                }
+                else if (str[j] === "(") {
+                    count++;
+                    if (str[j + 1] !== "?") {
+                        throw new TypeError("Capturing groups are not allowed at " + j);
+                    }
+                }
+                pattern += str[j++];
+            }
+            if (count)
+                throw new TypeError("Unbalanced pattern at " + i);
+            if (!pattern)
+                throw new TypeError("Missing pattern at " + i);
+            tokens.push({ type: "PATTERN", index: i, value: pattern });
+            i = j;
+            continue;
+        }
+        tokens.push({ type: "CHAR", index: i, value: str[i++] });
     }
+    tokens.push({ type: "END", index: i, value: "" });
+    return tokens;
+}
+/**
+ * Parse a string for the raw tokens.
+ */
+function parse(str, options) {
+    if (options === void 0) { options = {}; }
+    var tokens = lexer(str);
+    var _a = options.prefixes, prefixes = _a === void 0 ? "./" : _a;
+    var defaultPattern = "[^" + escapeString(options.delimiter || "/#?") + "]+?";
+    var result = [];
+    var key = 0;
+    var i = 0;
+    var path = "";
+    var tryConsume = function (type) {
+        if (i < tokens.length && tokens[i].type === type)
+            return tokens[i++].value;
+    };
+    var mustConsume = function (type) {
+        var value = tryConsume(type);
+        if (value !== undefined)
+            return value;
+        var _a = tokens[i], nextType = _a.type, index = _a.index;
+        throw new TypeError("Unexpected " + nextType + " at " + index + ", expected " + type);
+    };
+    var consumeText = function () {
+        var result = "";
+        var value;
+        // tslint:disable-next-line
+        while ((value = tryConsume("CHAR") || tryConsume("ESCAPED_CHAR"))) {
+            result += value;
+        }
+        return result;
+    };
+    while (i < tokens.length) {
+        var char = tryConsume("CHAR");
+        var name = tryConsume("NAME");
+        var pattern = tryConsume("PATTERN");
+        if (name || pattern) {
+            var prefix = char || "";
+            if (prefixes.indexOf(prefix) === -1) {
+                path += prefix;
+                prefix = "";
+            }
+            if (path) {
+                result.push(path);
+                path = "";
+            }
+            result.push({
+                name: name || key++,
+                prefix: prefix,
+                suffix: "",
+                pattern: pattern || defaultPattern,
+                modifier: tryConsume("MODIFIER") || ""
+            });
+            continue;
+        }
+        var value = char || tryConsume("ESCAPED_CHAR");
+        if (value) {
+            path += value;
+            continue;
+        }
+        if (path) {
+            result.push(path);
+            path = "";
+        }
+        var open = tryConsume("OPEN");
+        if (open) {
+            var prefix = consumeText();
+            var name_1 = tryConsume("NAME") || "";
+            var pattern_1 = tryConsume("PATTERN") || "";
+            var suffix = consumeText();
+            mustConsume("CLOSE");
+            result.push({
+                name: name_1 || (pattern_1 ? key++ : ""),
+                pattern: name_1 && !pattern_1 ? defaultPattern : pattern_1,
+                prefix: prefix,
+                suffix: suffix,
+                modifier: tryConsume("MODIFIER") || ""
+            });
+            continue;
+        }
+        mustConsume("END");
+    }
+    return result;
+}
+exports.parse = parse;
+/**
+ * Compile a string to a template function for the path.
+ */
+function compile(str, options) {
+    return tokensToFunction(parse(str, options), options);
+}
+exports.compile = compile;
+/**
+ * Expose a method for transforming tokens into the path function.
+ */
+function tokensToFunction(tokens, options) {
+    if (options === void 0) { options = {}; }
+    var reFlags = flags(options);
+    var _a = options.encode, encode = _a === void 0 ? function (x) { return x; } : _a, _b = options.validate, validate = _b === void 0 ? true : _b;
+    // Compile all the tokens into regexps.
+    var matches = tokens.map(function (token) {
+        if (typeof token === "object") {
+            return new RegExp("^(?:" + token.pattern + ")$", reFlags);
+        }
+    });
+    return function (data) {
+        var path = "";
+        for (var i = 0; i < tokens.length; i++) {
+            var token = tokens[i];
+            if (typeof token === "string") {
+                path += token;
+                continue;
+            }
+            var value = data ? data[token.name] : undefined;
+            var optional = token.modifier === "?" || token.modifier === "*";
+            var repeat = token.modifier === "*" || token.modifier === "+";
+            if (Array.isArray(value)) {
+                if (!repeat) {
+                    throw new TypeError("Expected \"" + token.name + "\" to not repeat, but got an array");
+                }
+                if (value.length === 0) {
+                    if (optional)
+                        continue;
+                    throw new TypeError("Expected \"" + token.name + "\" to not be empty");
+                }
+                for (var j = 0; j < value.length; j++) {
+                    var segment = encode(value[j], token);
+                    if (validate && !matches[i].test(segment)) {
+                        throw new TypeError("Expected all \"" + token.name + "\" to match \"" + token.pattern + "\", but got \"" + segment + "\"");
+                    }
+                    path += token.prefix + segment + token.suffix;
+                }
+                continue;
+            }
+            if (typeof value === "string" || typeof value === "number") {
+                var segment = encode(String(value), token);
+                if (validate && !matches[i].test(segment)) {
+                    throw new TypeError("Expected \"" + token.name + "\" to match \"" + token.pattern + "\", but got \"" + segment + "\"");
+                }
+                path += token.prefix + segment + token.suffix;
+                continue;
+            }
+            if (optional)
+                continue;
+            var typeOfMessage = repeat ? "an array" : "a string";
+            throw new TypeError("Expected \"" + token.name + "\" to be " + typeOfMessage);
+        }
+        return path;
+    };
+}
+exports.tokensToFunction = tokensToFunction;
+/**
+ * Create path match function from `path-to-regexp` spec.
+ */
+function match(str, options) {
+    var keys = [];
+    var re = pathToRegexp(str, keys, options);
+    return regexpToFunction(re, keys, options);
+}
+exports.match = match;
+/**
+ * Create a path match function from `path-to-regexp` output.
+ */
+function regexpToFunction(re, keys, options) {
+    if (options === void 0) { options = {}; }
+    var _a = options.decode, decode = _a === void 0 ? function (x) { return x; } : _a;
+    return function (pathname) {
+        var m = re.exec(pathname);
+        if (!m)
+            return false;
+        var path = m[0], index = m.index;
+        var params = Object.create(null);
+        var _loop_1 = function (i) {
+            // tslint:disable-next-line
+            if (m[i] === undefined)
+                return "continue";
+            var key = keys[i - 1];
+            if (key.modifier === "*" || key.modifier === "+") {
+                params[key.name] = m[i].split(key.prefix + key.suffix).map(function (value) {
+                    return decode(value, key);
+                });
+            }
+            else {
+                params[key.name] = decode(m[i], key);
+            }
+        };
+        for (var i = 1; i < m.length; i++) {
+            _loop_1(i);
+        }
+        return { path: path, index: index, params: params };
+    };
+}
+exports.regexpToFunction = regexpToFunction;
+/**
+ * Escape a regular expression string.
+ */
+function escapeString(str) {
+    return str.replace(/([.+*?=^!:${}()[\]|/\\])/g, "\\$1");
+}
+/**
+ * Get the flags for a regexp from the options.
+ */
+function flags(options) {
+    return options && options.sensitive ? "" : "i";
+}
+/**
+ * Pull out keys from a regexp.
+ */
+function regexpToRegexp(path, keys) {
+    if (!keys)
+        return path;
+    var groupsRegex = /\((?:\?<(.*?)>)?(?!\?)/g;
+    var index = 0;
+    var execResult = groupsRegex.exec(path.source);
+    while (execResult) {
+        keys.push({
+            // Use parenthesized substring match if available, index otherwise
+            name: execResult[1] || index++,
+            prefix: "",
+            suffix: "",
+            modifier: "",
+            pattern: ""
+        });
+        execResult = groupsRegex.exec(path.source);
+    }
+    return path;
+}
+/**
+ * Transform an array into a regexp.
+ */
+function arrayToRegexp(paths, keys, options) {
+    var parts = paths.map(function (path) { return pathToRegexp(path, keys, options).source; });
+    return new RegExp("(?:" + parts.join("|") + ")", flags(options));
+}
+/**
+ * Create a path regexp from string input.
+ */
+function stringToRegexp(path, keys, options) {
+    return tokensToRegexp(parse(path, options), keys, options);
+}
+/**
+ * Expose a function for taking tokens and returning a RegExp.
+ */
+function tokensToRegexp(tokens, keys, options) {
+    if (options === void 0) { options = {}; }
+    var _a = options.strict, strict = _a === void 0 ? false : _a, _b = options.start, start = _b === void 0 ? true : _b, _c = options.end, end = _c === void 0 ? true : _c, _d = options.encode, encode = _d === void 0 ? function (x) { return x; } : _d;
+    var endsWith = "[" + escapeString(options.endsWith || "") + "]|$";
+    var delimiter = "[" + escapeString(options.delimiter || "/#?") + "]";
+    var route = start ? "^" : "";
+    // Iterate over the tokens and create our regexp string.
+    for (var _i = 0, tokens_1 = tokens; _i < tokens_1.length; _i++) {
+        var token = tokens_1[_i];
+        if (typeof token === "string") {
+            route += escapeString(encode(token));
+        }
+        else {
+            var prefix = escapeString(encode(token.prefix));
+            var suffix = escapeString(encode(token.suffix));
+            if (token.pattern) {
+                if (keys)
+                    keys.push(token);
+                if (prefix || suffix) {
+                    if (token.modifier === "+" || token.modifier === "*") {
+                        var mod = token.modifier === "*" ? "?" : "";
+                        route += "(?:" + prefix + "((?:" + token.pattern + ")(?:" + suffix + prefix + "(?:" + token.pattern + "))*)" + suffix + ")" + mod;
+                    }
+                    else {
+                        route += "(?:" + prefix + "(" + token.pattern + ")" + suffix + ")" + token.modifier;
+                    }
+                }
+                else {
+                    route += "(" + token.pattern + ")" + token.modifier;
+                }
+            }
+            else {
+                route += "(?:" + prefix + suffix + ")" + token.modifier;
+            }
+        }
+    }
+    if (end) {
+        if (!strict)
+            route += delimiter + "?";
+        route += !options.endsWith ? "$" : "(?=" + endsWith + ")";
+    }
+    else {
+        var endToken = tokens[tokens.length - 1];
+        var isEndDelimited = typeof endToken === "string"
+            ? delimiter.indexOf(endToken[endToken.length - 1]) > -1
+            : // tslint:disable-next-line
+                endToken === undefined;
+        if (!strict) {
+            route += "(?:" + delimiter + "(?=" + endsWith + "))?";
+        }
+        if (!isEndDelimited) {
+            route += "(?=" + delimiter + "|" + endsWith + ")";
+        }
+    }
+    return new RegExp(route, flags(options));
+}
+exports.tokensToRegexp = tokensToRegexp;
+/**
+ * Normalize the given path string, returning a regular expression.
+ *
+ * An empty array can be passed in for the keys, which will hold the
+ * placeholder key descriptions. For example, using `/user/:id`, `keys` will
+ * contain `[{ name: 'id', delimiter: '/', optional: false, repeat: false }]`.
+ */
+function pathToRegexp(path, keys, options) {
+    if (path instanceof RegExp)
+        return regexpToRegexp(path, keys);
+    if (Array.isArray(path))
+        return arrayToRegexp(path, keys, options);
+    return stringToRegexp(path, keys, options);
+}
+exports.pathToRegexp = pathToRegexp;
 
-    for (var h = "function" == typeof require && require, D = 0; D < A.length; D++) m(A[D]);
-    return m;
+},{}],2:[function(require,module,exports){
+const { pathToRegexp } = require("path-to-regexp");
+
+class VueRouter {
+  constructor() {
+    this.router = {};
+    let that = this;
+    window.addEventListener("load", () => {
+      that._refresh();
+    });
+    window.addEventListener("hashchange", () => {
+      that._refresh();
+    });
+  }
+  route(name, handler) {
+    this.router[name] = handler;
+  }
+  _refresh() {
+    let params = location.hash.slice(1) || "/";
+    let name = params;
+    let queryIndex = params.indexOf("?");
+    if (queryIndex > -1) {
+      name = params.slice(0, queryIndex);
+      params = params.slice(queryIndex + 1);
+      let arr = params.split("=");
+      params = {};
+      for (let i = 0; i < arr.length; i += 2) {
+        params[arr[i]] = arr[i + 1];
+      }
+    } else {
+      params = {};
+    }
+    for (let p of Object.keys(this.router)) {
+      if (pathToRegexp(p).test(name)) {
+        if (Object.keys(params).length === 0) {
+          // maybe the last params like :id
+          const v = name.slice(name.lastIndexOf("/") + 1);
+          const k = p.slice(p.lastIndexOf(":") + 1);
+          if (v) {
+            params[k] = v;
+          }
+        }
+        return this.router[p](params);
+      }
+    }
+    // this._changeLocation("/#/main");
+  }
+  switchRouter(name, params) {
+    let url = !!name ? "/#/" + name : "/#/main";
+    if (params) {
+      if (params.toString().includes("?")) {
+        url = url + params;
+      } else {
+        url = url + "/" + params;
+      }
+    }
+    this._changeLocation(url);
   }
 
-  return q;
-})()({
-  1: [function (q, x, n) {
-    var A = q("path-to-regexp").pathToRegexp;
-    q =
-      function (m) {
-        var h = this;
-        this.currentHash = "/";
-        this.routes = {};
-        this.NFoundCallbak = m;
-        window.addEventListener("load", function () {
-          h._refresh();
-        }, !1);
-        window.addEventListener("hashchange", function () {
-          h._refresh();
-        });
-      };
-    q.prototype.route = function (m, h) {
-      m = A(m, [], {sensitive: !0, strict: !0});
-      this.routes[m] = h;
-    };
-    q.prototype._refresh = function () {
-      this.currentHash = location.hash.slice(1) || "/";
-      for (var m = $jscomp.makeIterator(Object.keys(this.routes)), h = m.next(); !h.done; h = m.next()) if (h = h.value, eval(h).test(this.currentHash)) {
-        this.routes[h](this.currentHash);
-        return;
-      }
-      this.NFoundCallbak && this.NFoundCallbak(this.currentHash);
-    };
-    q.prototype.switchRouter = function (m, h) {
-      m = void 0 === m ? "main" : m;
-      h = void 0 === h ? "" : h;
-      m = m ? "#/" + m : "";
-      h && (m = m + "/" + h);
-      h = document.createElement("a");
-      h.setAttribute("href", m);
-      h.setAttribute("target", "_self");
-      h.setAttribute("id", "router_id_x");
-      h.click();
-    };
-    window.VueRouter = q;
-  }, {"path-to-regexp": 2}], 2: [function (q, x, n) {
-    function A(a) {
-      for (var e = [], b = 0; b < a.length;) {
-        var d = a[b];
-        if ("*" === d || "+" === d || "?" === d) e.push({type: "MODIFIER", index: b, value: a[b++]}); else if ("\\" ===
-          d) e.push({type: "ESCAPED_CHAR", index: b++, value: a[b++]}); else if ("{" === d) e.push({
-          type: "OPEN",
-          index: b,
-          value: a[b++]
-        }); else if ("}" === d) e.push({type: "CLOSE", index: b, value: a[b++]}); else if (":" === d) {
-          var g = "";
-          for (d = b + 1; d < a.length;) {
-            var f = a.charCodeAt(d);
-            if (48 <= f && 57 >= f || 65 <= f && 90 >= f || 97 <= f && 122 >= f || 95 === f) g += a[d++]; else break;
-          }
-          if (!g) throw new TypeError("Missing parameter name at " + b);
-          e.push({type: "NAME", index: b, value: g});
-          b = d;
-        } else if ("(" === d) {
-          g = 1;
-          f = "";
-          d = b + 1;
-          if ("?" === a[d]) throw new TypeError("Pattern cannot start with \"?\" at " +
-            d);
-          for (; d < a.length;) if ("\\" === a[d]) f += a[d++] + a[d++]; else {
-            if (")" === a[d]) {
-              if (g--, 0 === g) {
-                d++;
-                break;
-              }
-            } else if ("(" === a[d] && (g++, "?" !== a[d + 1])) throw new TypeError("Capturing groups are not allowed at " + d);
-            f += a[d++];
-          }
-          if (g) throw new TypeError("Unbalanced pattern at " + b);
-          if (!f) throw new TypeError("Missing pattern at " + b);
-          e.push({type: "PATTERN", index: b, value: f});
-          b = d;
-        } else e.push({type: "CHAR", index: b, value: a[b++]});
-      }
-      e.push({type: "END", index: b, value: ""});
-      return e;
-    }
+  _changeLocation(url) {
+    const a = document.createElement("a");
+    a.setAttribute("href", url);
+    a.setAttribute("target", "_self");
+    a.setAttribute("id", "router_id_x");
+    a.click();
+  }
+}
+window["VueRouter"] = VueRouter;
 
-    function m(a, e) {
-      void 0 === e && (e = {});
-      var b = A(a);
-      a = e.prefixes;
-      a = void 0 === a ? "./" : a;
-      e = "[^" + r(e.delimiter || "/#?") + "]+?";
-      for (var d = [], g = 0, f = 0, u = "", k = function (B) {
-        if (f < b.length && b[f].type === B) return b[f++].value;
-      }, v = function (B) {
-        var z = k(B);
-        if (void 0 !== z) return z;
-        z = b[f];
-        throw new TypeError("Unexpected " + z.type + " at " + z.index + ", expected " + B);
-      }, t = function () {
-        for (var B = "", z; z = k("CHAR") || k("ESCAPED_CHAR");) B += z;
-        return B;
-      }; f < b.length;) {
-        var c = k("CHAR"), l = k("NAME"), p = k("PATTERN");
-        if (l || p) c = c || "", -1 === a.indexOf(c) && (u += c, c = ""), u && (d.push(u), u = ""), d.push({
-          name: l || g++, prefix: c,
-          suffix: "", pattern: p || e, modifier: k("MODIFIER") || ""
-        }); else if (c = c || k("ESCAPED_CHAR")) u += c; else if (u && (d.push(u), u = ""), k("OPEN")) {
-          c = t();
-          l = k("NAME") || "";
-          p = k("PATTERN") || "";
-          var w = t();
-          v("CLOSE");
-          d.push({
-            name: l || (p ? g++ : ""),
-            pattern: l && !p ? e : p,
-            prefix: c,
-            suffix: w,
-            modifier: k("MODIFIER") || ""
-          });
-        } else v("END");
-      }
-      return d;
-    }
+// const router = new VueRouter(function (params) {
+//   console.log("------not found--", params);
+// });
+// router.route("/main", function (params) {
+//   console.log("main");
+// });
+// router.route("/tx/:id", function (params) {
+//   console.log("------/tx/:id--", params);
+// });
+// router.route("/name", function (params) {
+//   console.log("------name--", params);
+// });
 
-    function h(a, e) {
-      void 0 === e && (e = {});
-      var b = e && e.sensitive ? "" : "i", d = e.encode, g = void 0 === d ? function (k) {
-        return k;
-      } : d;
-      e = e.validate;
-      var f = void 0 === e ? !0 : e, u = a.map(function (k) {
-        if ("object" === typeof k) return new RegExp("^(?:" +
-          k.pattern + ")$", b);
-      });
-      return function (k) {
-        for (var v = "", t = 0; t < a.length; t++) {
-          var c = a[t];
-          if ("string" === typeof c) v += c; else {
-            var l = k ? k[c.name] : void 0, p = "?" === c.modifier || "*" === c.modifier,
-              w = "*" === c.modifier || "+" === c.modifier;
-            if (Array.isArray(l)) {
-              if (!w) throw new TypeError("Expected \"" + c.name + "\" to not repeat, but got an array");
-              if (0 === l.length) {
-                if (p) continue;
-                throw new TypeError("Expected \"" + c.name + "\" to not be empty");
-              }
-              for (p = 0; p < l.length; p++) {
-                w = g(l[p], c);
-                if (f && !u[t].test(w)) throw new TypeError("Expected all \"" +
-                  c.name + "\" to match \"" + c.pattern + "\", but got \"" + w + "\"");
-                v += c.prefix + w + c.suffix;
-              }
-            } else if ("string" === typeof l || "number" === typeof l) {
-              w = g(String(l), c);
-              if (f && !u[t].test(w)) throw new TypeError("Expected \"" + c.name + "\" to match \"" + c.pattern + "\", but got \"" + w + "\"");
-              v += c.prefix + w + c.suffix;
-            } else if (!p) throw new TypeError("Expected \"" + c.name + "\" to be " + (w ? "an array" : "a string"));
-          }
-        }
-        return v;
-      };
-    }
+// router.swithRouter("/name?user=shaokun");
+// router.swithRouter("/tx/1");
+// router.swithRouter("/main");
 
-    function D(a, e, b) {
-      void 0 === b && (b = {});
-      b = b.decode;
-      var d = void 0 === b ? function (g) {
-        return g;
-      } : b;
-      return function (g) {
-        var f = a.exec(g);
-        if (!f) return !1;
-        g = f[0];
-        for (var u = f.index, k = Object.create(null), v = function (c) {
-          if (void 0 === f[c]) return "continue";
-          var l = e[c - 1];
-          k[l.name] = "*" === l.modifier || "+" === l.modifier ? f[c].split(l.prefix + l.suffix).map(function (p) {
-            return d(p, l);
-          }) : d(f[c], l);
-        }, t = 1; t < f.length; t++) v(t);
-        return {path: g, index: u, params: k};
-      };
-    }
-
-    function r(a) {
-      return a.replace(/([.+*?=^!:${}()[\]|/\\])/g, "\\$1");
-    }
-
-    function y(a, e, b) {
-      a = a.map(function (d) {
-        return C(d, e, b).source;
-      });
-      return new RegExp("(?:" + a.join("|") + ")", b && b.sensitive ? "" : "i");
-    }
-
-    function E(a, e, b) {
-      void 0 ===
-      b && (b = {});
-      var d = b.strict;
-      d = void 0 === d ? !1 : d;
-      var g = b.start, f = void 0 === g ? !0 : g;
-      g = b.end;
-      var u = void 0 === g ? !0 : g;
-      g = b.encode;
-      var k = void 0 === g ? function (w) {
-        return w;
-      } : g;
-      g = "[" + r(b.endsWith || "") + "]|$";
-      var v = "[" + r(b.delimiter || "/#?") + "]";
-      f = f ? "^" : "";
-      for (var t = 0; t < a.length; t++) {
-        var c = a[t];
-        if ("string" === typeof c) f += r(k(c)); else {
-          var l = r(k(c.prefix)), p = r(k(c.suffix));
-          c.pattern ? (e && e.push(c), f = l || p ? "+" === c.modifier || "*" === c.modifier ? f + ("(?:" + l + "((?:" + c.pattern + ")(?:" + p + l + "(?:" + c.pattern + "))*)" + p + ")" + ("*" === c.modifier ?
-            "?" : "")) : f + ("(?:" + l + "(" + c.pattern + ")" + p + ")" + c.modifier) : f + ("(" + c.pattern + ")" + c.modifier)) : f += "(?:" + l + p + ")" + c.modifier;
-        }
-      }
-      u ? (d || (f += v + "?"), f += b.endsWith ? "(?=" + g + ")" : "$") : (a = a[a.length - 1], a = "string" === typeof a ? -1 < v.indexOf(a[a.length - 1]) : void 0 === a, d || (f += "(?:" + v + "(?=" + g + "))?"), a || (f += "(?=" + v + "|" + g + ")"));
-      return new RegExp(f, b && b.sensitive ? "" : "i");
-    }
-
-    function C(a, e, b) {
-      if (a instanceof RegExp) {
-        if (e) {
-          b = /\((?:\?<(.*?)>)?(?!\?)/g;
-          for (var d = 0, g = b.exec(a.source); g;) e.push({
-            name: g[1] || d++, prefix: "", suffix: "", modifier: "",
-            pattern: ""
-          }), g = b.exec(a.source);
-        }
-        return a;
-      }
-      return Array.isArray(a) ? y(a, e, b) : E(m(a, b), e, b);
-    }
-
-    Object.defineProperty(n, "__esModule", {value: !0});
-    n.pathToRegexp = n.tokensToRegexp = n.regexpToFunction = n.match = n.tokensToFunction = n.compile = n.parse = void 0;
-    n.parse = m;
-    n.compile = function (a, e) {
-      return h(m(a, e), e);
-    };
-    n.tokensToFunction = h;
-    n.match = function (a, e) {
-      var b = [];
-      a = C(a, b, e);
-      return D(a, b, e);
-    };
-    n.regexpToFunction = D;
-    n.tokensToRegexp = E;
-    n.pathToRegexp = C;
-  }, {}]
-}, {}, [1]);
+},{"path-to-regexp":1}]},{},[2]);

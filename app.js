@@ -40,26 +40,21 @@ function handleWs(_this) {
 new Vue({
   el: "#app",
   created: function () {
-    handleWs(this);
-    let that = this;
-    const router = new VueRouter(function (params) {
-      that._switchPage("main");
-      that.switchRouter("main");
-    });
-    this.routerCtrl = router;
-    router.route("/main", function () {
-      that._switchPage("main");
-      console.log("main");
-    });
-    router.route("/tx/:id", function (params) {
-      that._switchPage("tx");
-      let txID = params.slice(params.lastIndexOf("/") + 1);
-      console.log("tx id is ", txID);
-    });
-    router.route("/name", function () {
-      that._switchPage("name");
-      console.log("router name");
-    });
+    handleWs(this)
+    let that = this
+    this.routerCtrl = new VueRouter()
+    this.routerCtrl.route("/main", function () {
+      that._switchPage("main")
+      console.log("main")
+    })
+    this.routerCtrl.route("/tx/:id", function (params) {
+      that._switchPage("tx")
+      console.log("tx id is ", params)
+    })
+    this.routerCtrl.route("/name", function (params) {
+      that._switchPage("name")
+      console.log("router name", params)
+    })
   },
   data: {
     pages: {
@@ -72,12 +67,12 @@ new Vue({
   },
   methods: {
     switchRouter: function (action, params) {
-      this.routerCtrl.switchRouter(action, params);
+      this.routerCtrl.switchRouter(action, params)
     },
     _switchPage: function (_page) {
       for (let page of Object.keys(this.pages)) {
-        this.pages[page] = page === _page;
+        this.pages[page] = page === _page
       }
     }
   }
-});
+})
