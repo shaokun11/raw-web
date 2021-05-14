@@ -15,7 +15,7 @@
     <!-- bootstrap -->
     <!-- CSS only -->
     <!--    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/css/bootstrap.min.css" rel="stylesheet">-->
-    <!--    maybe we are custom-->
+    <!--    maybe we want to  custom theme -->
     <link rel="stylesheet" href="css/index.min.css">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- alert -->
@@ -24,6 +24,11 @@
     <script src="https://cdn.jsdelivr.net/npm/toastr@2.1.4/build/toastr.min.js"></script>
     <!-- router -->
     <script src="static/router.js"></script>
+    <!-- ie fetch -->
+    <script src="https://cdn.jsdelivr.net/npm/babel-polyfill@6.26.0/browser.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/es6-promise@4.2.8/dist/es6-promise.auto.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fetch-detector@1.0.1/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fetch-ie8@1.5.0/fetch.min.js"></script>
     <script src="static/bn.js"></script>
     <script src="static/bignumber.js"></script>
     <title>comm</title>
@@ -49,11 +54,31 @@
     </div>
 </div>
 <link href="css/main.css" rel="stylesheet">
-<script src="app.js"></script>
-<!-- ie fetch -->
-<script src="https://cdn.jsdelivr.net/npm/babel-polyfill@6.26.0/browser.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/es6-promise@4.2.8/dist/es6-promise.auto.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/fetch-detector@1.0.1/index.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/fetch-ie8@1.5.0/fetch.min.js"></script>
+<script>
+  new Vue({
+    el: "#app",
+    created: function () {
+      this.handleWs(), this.handleRouter();
+    },
+    data: {pages: {main: !0, tx: !1, name: !1}, message: "Hello shaokun", routerCtrl: null},
+    methods: {
+      switchRouter: function (t, e) {
+        this.routerCtrl.switchRouter(t, e);
+      }, _switchPage: function (t) {
+        for (let e of Object.keys(this.pages)) this.pages[e] = e === t;
+      }, handleWs() {
+      }, handleRouter() {
+        let t = this;
+        this.routerCtrl = new VueRouter, this.routerCtrl.route("/main", function () {
+          t._switchPage("main"), console.log("main");
+        }), this.routerCtrl.route("/tx/:id", function (e) {
+          t._switchPage("tx"), console.log("tx id is ", e);
+        }), this.routerCtrl.route("/name", function (e) {
+          t._switchPage("name"), console.log("router name", e);
+        });
+      }
+    }
+  });
+</script>
 </body>
 </html>
